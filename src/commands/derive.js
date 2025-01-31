@@ -7,6 +7,38 @@ const { formatExtendedKey } = require('../utils/formatting');
 // Initialize BIP32 factory with network support
 const BIP32 = BIP32Factory(ecc);
 
+// Hardened index offset (2^31)
+const HARDENED_OFFSET = 0x80000000;
+
+/**
+ * Converts a path segment to its numeric index
+ * @param {string} segment - Path segment (e.g., "0" or "0'" or "0h")
+ * @returns {number} Numeric index
+ */
+function getPathIndex(segment) {
+  // Remove the first character 'm' if present
+  if (segment === 'm' || segment === 'M') return null;
+
+  // Check if hardened
+  const isHardened = segment.endsWith("'") || segment.endsWith("h");
+  // Get the numeric value
+  const index = parseInt(isHardened ? segment.slice(0, -1) : segment);
+
+  // Add hardened offset if needed
+  return isHardened ? index + HARDENED_OFFSET : index;
+}
+
+/**
+ * Converts a BIP32 path to array of numeric indices
+ * @param {string} path - BIP32 path (e.g., "m/0'/1/2h")
+ * @returns {number[]} Array of numeric indices
+ */
+function pathToIndicies(path) {
+  return path.split('/')
+    .map(getPathIndex)
+    .filter(index => index !== null);
+}
+
 function derive(options) {
   try {
     // Validate inputs
@@ -15,7 +47,10 @@ function derive(options) {
       process.exit(1);
     }
 
-    if (!isValidPath(options.path)) {
+    // Convert path to standardized format (using apostrophe for hardened)
+    const standardPath = options.path.replace(/h/g, "'");
+
+    if (!isValidPath(standardPath)) {
       console.error(chalk.red('Error: Invalid derivation path format'));
       process.exit(1);
     }
@@ -39,15 +74,30 @@ function derive(options) {
     // Parse the parent key with appropriate network
     const parentNode = BIP32.fromBase58(options.key, network);
 
-    // Derive child key
-    const childNode = parentNode.derivePath(options.path);
+    // Convert path to indices and derive
+    const indices = pathToIndicies(standardPath);
+
+    // Debug log for indices
+    if (options.verbose) {
+      console.log(chalk.blue('\nPath Indices:'));
+      indices.forEach((index, i) => {
+        const segment = standardPath.split('/')[i + 1];
+        const isHardened = index >= HARDENED_OFFSET;
+        console.log(chalk.blue(`${segment}: ${isHardened ? index - HARDENED_OFFSET : index}${isHardened ? "'" : ''} (raw: ${index})`));
+      });
+    }
+
+    let node = parentNode;
+    for (const index of indices) {
+      node = node.derive(index);
+    }
 
     // Prepare result
     const result = {
-      path: options.path,
-      childPrivateKey: childNode.isNeutered() ? null : childNode.toBase58(),
-      childPublicKey: childNode.neutered().toBase58(),
-      fingerprint: childNode.fingerprint.toString('hex'),
+      path: standardPath,
+      childPrivateKey: node.isNeutered() ? null : node.toBase58(),
+      childPublicKey: node.neutered().toBase58(),
+      fingerprint: node.fingerprint.toString('hex'),
       network: isTestnet ? 'testnet' : 'mainnet'
     };
 

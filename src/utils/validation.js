@@ -17,7 +17,8 @@ function isValidPath(path) {
   if (!path || typeof path !== 'string') return false;
 
   // Check if path starts with 'm' or 'M' and follows valid format
-  const regex = /^[mM](?:\/\d+'?)*$/;
+  // Now accepts both 'h' and apostrophe (') for hardened derivation
+  const regex = /^[mM](?:\/\d+['h]?)*$/;
   return regex.test(path);
 }
 
