@@ -15,7 +15,7 @@ function isValidHexString(hex) {
  */
 function isValidPath(path) {
   if (!path || typeof path !== 'string') return false;
-  
+
   // Check if path starts with 'm' or 'M' and follows valid format
   const regex = /^[mM](?:\/\d+'?)*$/;
   return regex.test(path);
@@ -28,9 +28,9 @@ function isValidPath(path) {
  */
 function isValidExtendedKey(key) {
   if (!key || typeof key !== 'string') return false;
-  
-  // Check if key starts with xprv or xpub and is base58 encoded
-  return /^(xprv|xpub)/.test(key) && /^[1-9A-HJ-NP-Za-km-z]+$/.test(key);
+
+  // Check if key starts with xprv/xpub (mainnet) or tprv/tpub (testnet) and is base58 encoded
+  return /^(xprv|xpub|tprv|tpub)/.test(key) && /^[1-9A-HJ-NP-Za-km-z]+$/.test(key);
 }
 
 module.exports = {

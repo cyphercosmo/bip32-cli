@@ -16,6 +16,7 @@ program
   .command('generate')
   .description('Generate a new BIP32 master key')
   .option('-s, --seed <hex>', 'Specify seed in hexadecimal format')
+  .option('-t, --testnet', 'Generate testnet keys')
   .option('-v, --verbose', 'Show detailed output')
   .action(generate);
 
@@ -23,7 +24,7 @@ program
 program
   .command('derive')
   .description('Derive child keys from a parent key')
-  .requiredOption('-k, --key <string>', 'Parent extended key (xprv/xpub)')
+  .requiredOption('-k, --key <string>', 'Parent extended key (xprv/xpub/tprv/tpub)')
   .requiredOption('-p, --path <string>', 'Derivation path (e.g., m/0/0)')
   .option('-v, --verbose', 'Show detailed output')
   .action(derive);
