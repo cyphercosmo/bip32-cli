@@ -4,6 +4,7 @@ const { program } = require('commander');
 const chalk = require('chalk');
 const generate = require('./commands/generate');
 const derive = require('./commands/derive');
+const decode = require('./commands/decode');
 
 // Set up CLI program
 program
@@ -28,6 +29,14 @@ program
   .requiredOption('-p, --path <string>', 'Derivation path (e.g., m/0/0)')
   .option('-v, --verbose', 'Show detailed output')
   .action(derive);
+
+// Decode command
+program
+  .command('decode')
+  .description('Decode and display information about an extended key')
+  .requiredOption('-k, --key <string>', 'Extended key to decode (xprv/xpub/tprv/tpub)')
+  .option('-v, --verbose', 'Show detailed output')
+  .action(decode);
 
 // Error handling for unknown commands
 program.on('command:*', function () {
