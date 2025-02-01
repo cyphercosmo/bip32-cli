@@ -7,19 +7,26 @@ const { isValidExtendedKey } = require('../utils/validation');
 const BIP32 = BIP32Factory(ecc);
 
 /**
- * Safely converts a value to a hex string with padding
- * @param {Buffer|number} value - The value to convert
- * @param {number} padLength - Length to pad the hex string to
- * @returns {string} Padded hex string
+ * Formats a Buffer or Uint8Array as a continuous hex string
+ * @param {Buffer|Uint8Array|number} value - Value to convert
+ * @param {number} padLength - Optional padding length
+ * @returns {string} Formatted hex string
  */
-function toSafeHex(value, padLength = 0) {
-  if (Buffer.isBuffer(value)) {
-    return value.toString('hex').padStart(padLength || value.length * 2, '0');
+function formatHex(value, padLength = 0) {
+  try {
+    if (value instanceof Uint8Array || Buffer.isBuffer(value)) {
+      // Convert to Buffer first to ensure consistent handling
+      const buffer = Buffer.from(value);
+      const hexString = buffer.toString('hex');
+      return hexString.padStart(padLength || hexString.length, '0');
+    } else if (typeof value === 'number') {
+      return value.toString(16).padStart(padLength, '0');
+    }
+    return ''.padStart(padLength || 2, '0');
+  } catch (error) {
+    console.error('Error in formatHex:', error);
+    return ''.padStart(padLength || 2, '0');
   }
-  if (typeof value === 'number') {
-    return value.toString(16).padStart(padLength, '0');
-  }
-  return '00'.repeat(padLength / 2);
 }
 
 function decode(options) {
@@ -56,30 +63,38 @@ function decode(options) {
       (node.isNeutered() ? '043587cf' : '04358394') :
       (node.isNeutered() ? '0488b21e' : '0488ade4');
 
-    // Format all hex values consistently
+    // Format all values as continuous hex strings
     const result = {
-      version: `0x${version}`,
+      version,
       network: isTestnet ? 'testnet' : 'mainnet',
       type: node.isNeutered() ? 'Public' : 'Private',
-      depth: `0x${toSafeHex(node.depth, 2)}`,
-      parentFingerprint: `0x${toSafeHex(node.parentFingerprint, 8)}`,
-      index: `0x${toSafeHex(node.index, 8)}`,
-      fingerprint: `0x${toSafeHex(node.fingerprint, 8)}`,
-      chainCode: `0x${Buffer.isBuffer(node.chainCode) ? node.chainCode.toString('hex') : ''}`,
-      publicKey: `0x${Buffer.isBuffer(node.publicKey) ? node.publicKey.toString('hex') : ''}`
+      depth: formatHex(node.depth, 2),
+      parentFingerprint: formatHex(node.parentFingerprint, 8),
+      index: formatHex(node.index, 8),
+      fingerprint: formatHex(node.fingerprint, 8),
+      chainCode: formatHex(node.chainCode),
+      publicKey: formatHex(node.publicKey)
     };
+
+    // Add privateKey if available
+    if (!node.isNeutered()) {
+      result.privateKey = formatHex(node.privateKey);
+    }
 
     if (options.verbose) {
       console.log(chalk.green('\nDecoded Extended Key:'));
-      console.log(chalk.yellow('Version:          '), result.version);
+      console.log(chalk.yellow('Version:          '), `0x${result.version}`);
       console.log(chalk.yellow('Network:          '), result.network);
       console.log(chalk.yellow('Type:             '), result.type);
-      console.log(chalk.yellow('Depth:            '), result.depth);
-      console.log(chalk.yellow('Parent FP:        '), result.parentFingerprint);
-      console.log(chalk.yellow('Index:            '), result.index);
-      console.log(chalk.yellow('Fingerprint:      '), result.fingerprint);
-      console.log(chalk.yellow('Chain Code:       '), result.chainCode);
-      console.log(chalk.yellow('Public Key:       '), result.publicKey);
+      console.log(chalk.yellow('Depth:            '), `0x${result.depth}`);
+      console.log(chalk.yellow('Parent FP:        '), `0x${result.parentFingerprint}`);
+      console.log(chalk.yellow('Index:            '), `0x${result.index}`);
+      console.log(chalk.yellow('Fingerprint:      '), `0x${result.fingerprint}`);
+      console.log(chalk.yellow('Chain Code:       '), `0x${result.chainCode}`);
+      if (result.privateKey) {
+        console.log(chalk.yellow('Private Key:      '), `0x${result.privateKey}`);
+      }
+      console.log(chalk.yellow('Public Key:       '), `0x${result.publicKey}`);
     } else {
       console.log(JSON.stringify(result, null, 2));
     }
