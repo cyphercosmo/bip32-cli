@@ -11,7 +11,6 @@
   "description": "",
   "dependencies": {
     "bip32": "^5.0.0-rc.0",
-    "bs58check": "^4.0.0",
     "chalk": "^4.1.2",
     "commander": "^13.1.0",
     "tiny-secp256k1": "^2.2.3"
