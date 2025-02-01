@@ -6,6 +6,22 @@ const { isValidExtendedKey } = require('../utils/validation');
 // Initialize BIP32 factory
 const BIP32 = BIP32Factory(ecc);
 
+/**
+ * Safely converts a value to a hex string with padding
+ * @param {Buffer|number} value - The value to convert
+ * @param {number} padLength - Length to pad the hex string to
+ * @returns {string} Padded hex string
+ */
+function toSafeHex(value, padLength = 0) {
+  if (Buffer.isBuffer(value)) {
+    return value.toString('hex').padStart(padLength || value.length * 2, '0');
+  }
+  if (typeof value === 'number') {
+    return value.toString(16).padStart(padLength, '0');
+  }
+  return '00'.repeat(padLength / 2);
+}
+
 function decode(options) {
   try {
     const { key } = options;
@@ -35,26 +51,22 @@ function decode(options) {
     // Parse the key
     const node = BIP32.fromBase58(key, network);
 
-    // Format buffers to hex strings
-    const fingerprint = node.fingerprint ? node.fingerprint.toString('hex').padStart(8, '0') : '00000000';
-    const parentFingerprint = node.parentFingerprint ? node.parentFingerprint.toString('hex').padStart(8, '0') : '00000000';
-    const chainCode = node.chainCode.toString('hex');
-    const publicKey = node.publicKey.toString('hex');
+    // Get version based on network and key type
     const version = isTestnet ? 
       (node.isNeutered() ? '043587cf' : '04358394') :
       (node.isNeutered() ? '0488b21e' : '0488ade4');
 
-    // Prepare result
+    // Format all hex values consistently
     const result = {
       version: `0x${version}`,
       network: isTestnet ? 'testnet' : 'mainnet',
       type: node.isNeutered() ? 'Public' : 'Private',
-      depth: `0x${node.depth.toString(16).padStart(2, '0')}`,
-      fingerprint: `0x${fingerprint}`,
-      parentFingerprint: `0x${parentFingerprint}`,
-      index: `0x${node.index.toString(16).padStart(8, '0')}`,
-      chainCode: `0x${chainCode}`,
-      publicKey: `0x${publicKey}`
+      depth: `0x${toSafeHex(node.depth, 2)}`,
+      parentFingerprint: `0x${toSafeHex(node.parentFingerprint, 8)}`,
+      index: `0x${toSafeHex(node.index, 8)}`,
+      fingerprint: `0x${toSafeHex(node.fingerprint, 8)}`,
+      chainCode: `0x${Buffer.isBuffer(node.chainCode) ? node.chainCode.toString('hex') : ''}`,
+      publicKey: `0x${Buffer.isBuffer(node.publicKey) ? node.publicKey.toString('hex') : ''}`
     };
 
     if (options.verbose) {
