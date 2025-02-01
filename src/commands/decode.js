@@ -69,6 +69,12 @@ function decode(options) {
       process.exit(1);
     }
 
+    // For debugging, let's log the raw key data
+    if (options.verbose) {
+      console.log(chalk.blue('\nDebug Info:'));
+      console.log('Raw Extended Key:', key);
+    }
+
     // Determine network from key prefix
     const isTestnet = key.startsWith('t');
     const network = isTestnet ? {
@@ -103,6 +109,27 @@ function decode(options) {
     // Calculate current node's fingerprint from its public key
     const nodeFingerprint = calculateFingerprint(node.publicKey);
 
+    // Add debug info for public key formats
+    if (options.verbose) {
+      console.log('\nPublic Key Analysis:');
+      console.log('Raw Public Key:', node.publicKey.toString('hex'));
+      console.log('Is Compressed:', node.publicKey[0] === 0x02 || node.publicKey[0] === 0x03);
+      console.log('Length:', node.publicKey.length);
+      console.log('First byte:', `0x${node.publicKey[0].toString(16)}`);
+      console.log('Public Key Buffer:', Buffer.from(node.publicKey).toString('hex'));
+      console.log('HASH160 of Public Key:', hash160);
+      console.log('First 4 bytes of HASH160:', hash160.slice(0, 8));
+
+      // Additional BIP32 node details
+      console.log('\nBIP32 Node Details:');
+      console.log('Private Key:', node.privateKey ? node.privateKey.toString('hex') : 'N/A');
+      console.log('Chain Code:', node.chainCode.toString('hex'));
+      console.log('Network:', isTestnet ? 'testnet' : 'mainnet');
+      console.log('Depth:', node.depth);
+      console.log('Index:', node.index);
+      console.log('Parent Fingerprint:', parentFingerprint);
+    }
+
     // Format all values as continuous hex strings
     const result = {
       version,
@@ -118,7 +145,7 @@ function decode(options) {
     };
 
     // Add privateKey if available
-    if (!node.isNeutered()) {
+    if (!node.isNeutered() && node.privateKey) {
       result.privateKey = formatHex(node.privateKey);
     }
 
