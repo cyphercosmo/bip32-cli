@@ -2,6 +2,7 @@ const chalk = require('chalk');
 const { BIP32Factory } = require('bip32');
 const ecc = require('tiny-secp256k1');
 const crypto = require('crypto');
+const base58check = require('bs58check');
 const { isValidExtendedKey } = require('../utils/validation');
 
 // Initialize BIP32 factory
@@ -27,14 +28,9 @@ function calculateHash160(data) {
  * @returns {string} Fingerprint as hex string
  */
 function calculateFingerprint(publicKey) {
-  // Check if public key starts with 0x02 or 0x03 (compressed format)
-  // If not, the library might be giving us uncompressed format
-  const compressedPubKey = publicKey[0] === 0x02 || publicKey[0] === 0x03 
-    ? publicKey 
-    : ecc.pointCompress(publicKey, true);
-
-  const hash160 = calculateHash160(compressedPubKey);
-  return hash160.slice(0, 4).toString('hex');
+  // If public key is not compressed, compress it
+  const compressedPubKey = publicKey.length === 33 ? publicKey : ecc.pointCompress(publicKey, true);
+  return calculateHash160(compressedPubKey).slice(0, 4).toString('hex');
 }
 
 /**
@@ -69,6 +65,13 @@ function decode(options) {
       process.exit(1);
     }
 
+    // Decode base58check string to get raw bytes
+    const rawBytes = base58check.decode(key);
+
+    // Extract the version and parent fingerprint from raw bytes
+    const version = rawBytes.slice(0, 4).toString('hex');
+    const parentFingerprint = rawBytes.slice(4, 8).toString('hex');
+
     // Determine network from key prefix
     const isTestnet = key.startsWith('t');
     const network = isTestnet ? {
@@ -85,36 +88,30 @@ function decode(options) {
       }
     };
 
-    // Parse the key
+    // Parse the key using bip32
     const node = BIP32.fromBase58(key, network);
 
     // Get version based on network and key type
-    const version = isTestnet ? 
+    const versionHex = isTestnet ? 
       (node.isNeutered() ? '043587cf' : '04358394') :
       (node.isNeutered() ? '0488b21e' : '0488ade4');
 
     // Calculate hash160 from the public key
-    const hash160 = calculateHash160(node.publicKey).toString('hex');
-
-    // For master keys (depth 0), fingerprint should be 0x00000000
-    // For derived keys, use the parent fingerprint from the key itself
-    const parentFingerprint = node.depth === 0 ? '00000000' : formatHex(node.parentFingerprint, 8);
-
-    // Calculate current node's fingerprint from its public key
-    const nodeFingerprint = calculateFingerprint(node.publicKey);
+    const hash160 = calculateHash160(node.publicKey);
+    const fingerprint = calculateFingerprint(node.publicKey);
 
     // Format all values as continuous hex strings
     const result = {
-      version,
+      version: versionHex,
       network: isTestnet ? 'testnet' : 'mainnet',
       type: node.isNeutered() ? 'Public' : 'Private',
       depth: formatHex(node.depth, 2),
       parentFingerprint,
       index: formatHex(node.index, 8),
-      fingerprint: nodeFingerprint,
+      fingerprint,
       chainCode: formatHex(node.chainCode),
       publicKey: formatHex(node.publicKey),
-      hash160
+      hash160: hash160.toString('hex')
     };
 
     // Add privateKey if available
