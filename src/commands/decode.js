@@ -27,12 +27,8 @@ function calculateHash160(data) {
  * @returns {string} Fingerprint as hex string
  */
 function calculateFingerprint(publicKey) {
-  // Check if public key starts with 0x02 or 0x03 (compressed format)
-  // If not, the library might be giving us uncompressed format
-  const compressedPubKey = publicKey[0] === 0x02 || publicKey[0] === 0x03 
-    ? publicKey 
-    : ecc.pointCompress(publicKey, true);
-
+  // For BIP32 fingerprint calculation, we need the compressed public key
+  const compressedPubKey = ecc.pointCompress(publicKey, true);
   const hash160 = calculateHash160(compressedPubKey);
   return hash160.slice(0, 4).toString('hex');
 }
