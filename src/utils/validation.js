@@ -31,7 +31,10 @@ function isValidExtendedKey(key) {
   if (!key || typeof key !== 'string') return false;
 
   // Check if key starts with xprv/xpub (mainnet) or tprv/tpub (testnet) and is base58 encoded
-  return /^(xprv|xpub|tprv|tpub)/.test(key) && /^[1-9A-HJ-NP-Za-km-z]+$/.test(key);
+  const validPrefixes = /^(xprv|xpub|tprv|tpub)/;
+  const base58Chars = /^[1-9A-HJ-NP-Za-km-z]+$/;
+
+  return validPrefixes.test(key) && base58Chars.test(key) && key.length >= 111 && key.length <= 112;
 }
 
 module.exports = {

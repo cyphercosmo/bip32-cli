@@ -35,28 +35,39 @@ function decode(options) {
     // Parse the key
     const node = BIP32.fromBase58(key, network);
 
+    // Format buffers to hex strings
+    const fingerprint = node.fingerprint ? node.fingerprint.toString('hex').padStart(8, '0') : '00000000';
+    const parentFingerprint = node.parentFingerprint ? node.parentFingerprint.toString('hex').padStart(8, '0') : '00000000';
+    const chainCode = node.chainCode.toString('hex');
+    const publicKey = node.publicKey.toString('hex');
+    const version = isTestnet ? 
+      (node.isNeutered() ? '043587cf' : '04358394') :
+      (node.isNeutered() ? '0488b21e' : '0488ade4');
+
     // Prepare result
     const result = {
+      version: `0x${version}`,
       network: isTestnet ? 'testnet' : 'mainnet',
-      depth: node.depth,
-      fingerprint: Buffer.from(node.fingerprint).toString('hex'),
-      chainCode: node.chainCode.toString('hex'),
-      index: node.index,
-      parentFingerprint: Buffer.from(node.parentFingerprint).toString('hex'),
-      publicKey: node.publicKey.toString('hex'),
-      isPrivate: !node.isNeutered()
+      type: node.isNeutered() ? 'Public' : 'Private',
+      depth: `0x${node.depth.toString(16).padStart(2, '0')}`,
+      fingerprint: `0x${fingerprint}`,
+      parentFingerprint: `0x${parentFingerprint}`,
+      index: `0x${node.index.toString(16).padStart(8, '0')}`,
+      chainCode: `0x${chainCode}`,
+      publicKey: `0x${publicKey}`
     };
 
     if (options.verbose) {
       console.log(chalk.green('\nDecoded Extended Key:'));
-      console.log(chalk.yellow('Network:'), result.network);
-      console.log(chalk.yellow('Type:'), result.isPrivate ? 'Private' : 'Public');
-      console.log(chalk.yellow('Depth:'), result.depth);
-      console.log(chalk.yellow('Fingerprint:'), result.fingerprint);
-      console.log(chalk.yellow('Parent Fingerprint:'), result.parentFingerprint);
-      console.log(chalk.yellow('Index:'), result.index);
-      console.log(chalk.yellow('Chain Code:'), result.chainCode);
-      console.log(chalk.yellow('Public Key:'), result.publicKey);
+      console.log(chalk.yellow('Version:          '), result.version);
+      console.log(chalk.yellow('Network:          '), result.network);
+      console.log(chalk.yellow('Type:             '), result.type);
+      console.log(chalk.yellow('Depth:            '), result.depth);
+      console.log(chalk.yellow('Parent FP:        '), result.parentFingerprint);
+      console.log(chalk.yellow('Index:            '), result.index);
+      console.log(chalk.yellow('Fingerprint:      '), result.fingerprint);
+      console.log(chalk.yellow('Chain Code:       '), result.chainCode);
+      console.log(chalk.yellow('Public Key:       '), result.publicKey);
     } else {
       console.log(JSON.stringify(result, null, 2));
     }

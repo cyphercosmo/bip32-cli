@@ -19,10 +19,15 @@ function getPathIndex(segment) {
   // Remove the first character 'm' if present
   if (segment === 'm' || segment === 'M') return null;
 
-  // Check if hardened
+  // Check if hardened (supports both ' and h notation)
   const isHardened = segment.endsWith("'") || segment.endsWith("h");
-  // Get the numeric value
+
+  // Get the numeric value, removing the hardened indicator
   const index = parseInt(isHardened ? segment.slice(0, -1) : segment);
+
+  if (isNaN(index) || index < 0) {
+    throw new Error(`Invalid path segment: ${segment}`);
+  }
 
   // Add hardened offset if needed
   return isHardened ? index + HARDENED_OFFSET : index;
@@ -47,8 +52,8 @@ function derive(options) {
       process.exit(1);
     }
 
-    // Convert path to standardized format (using apostrophe for hardened)
-    const standardPath = options.path.replace(/h/g, "'");
+    // Convert path to standardized format (support both ' and h for hardened)
+    const standardPath = options.path;
 
     if (!isValidPath(standardPath)) {
       console.error(chalk.red('Error: Invalid derivation path format'));
@@ -79,11 +84,16 @@ function derive(options) {
 
     // Debug log for indices
     if (options.verbose) {
-      console.log(chalk.blue('\nPath Indices:'));
+      console.log(chalk.blue('\nPath Analysis:'));
       indices.forEach((index, i) => {
         const segment = standardPath.split('/')[i + 1];
         const isHardened = index >= HARDENED_OFFSET;
-        console.log(chalk.blue(`${segment}: ${isHardened ? index - HARDENED_OFFSET : index}${isHardened ? "'" : ''} (raw: ${index})`));
+        const displayIndex = isHardened ? index - HARDENED_OFFSET : index;
+        console.log(chalk.blue(
+          `${segment.padEnd(4)}: ` +
+          `index=0x${displayIndex.toString(16).padStart(8, '0')} ` +
+          `(raw=0x${index.toString(16).padStart(8, '0')})`
+        ));
       });
     }
 
@@ -94,22 +104,22 @@ function derive(options) {
 
     // Prepare result
     const result = {
+      network: isTestnet ? 'testnet' : 'mainnet',
       path: standardPath,
+      fingerprint: `0x${node.fingerprint.toString('hex').padStart(8, '0')}`,
       childPrivateKey: node.isNeutered() ? null : node.toBase58(),
-      childPublicKey: node.neutered().toBase58(),
-      fingerprint: node.fingerprint.toString('hex'),
-      network: isTestnet ? 'testnet' : 'mainnet'
+      childPublicKey: node.neutered().toBase58()
     };
 
     if (options.verbose) {
       console.log(chalk.green('\nDerived Keys:'));
-      console.log(chalk.yellow('Network:'), result.network);
-      console.log(chalk.yellow('Path:'), result.path);
+      console.log(chalk.yellow('Network:          '), result.network);
+      console.log(chalk.yellow('Path:             '), result.path);
+      console.log(chalk.yellow('Fingerprint:      '), result.fingerprint);
       if (result.childPrivateKey) {
         console.log(formatExtendedKey('Child Private Key', result.childPrivateKey));
       }
-      console.log(formatExtendedKey('Child Public Key', result.childPublicKey));
-      console.log(chalk.yellow('Fingerprint:'), result.fingerprint);
+      console.log(formatExtendedKey('Child Public Key ', result.childPublicKey));
     } else {
       console.log(result.childPrivateKey || result.childPublicKey);
     }
