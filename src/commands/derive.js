@@ -3,8 +3,9 @@ const { BIP32Factory } = require('bip32');
 const ecc = require('tiny-secp256k1');
 const { isValidPath, isValidExtendedKey } = require('../utils/validation');
 const { formatExtendedKey } = require('../utils/formatting');
+const { getNetwork } = require('../utils/networks');
 
-// Initialize BIP32 factory with network support
+// Initialize BIP32 factory
 const BIP32 = BIP32Factory(ecc);
 
 // Hardened index offset (2^31)
@@ -39,7 +40,8 @@ function getPathIndex(segment) {
  * @returns {number[]} Array of numeric indices
  */
 function pathToIndicies(path) {
-  return path.split('/')
+  return path
+    .split('/')
     .map(getPathIndex)
     .filter(index => index !== null);
 }
@@ -52,41 +54,26 @@ function derive(options) {
       process.exit(1);
     }
 
-    // Convert path to standardized format (support both ' and h for hardened)
-    const standardPath = options.path;
-
-    if (!isValidPath(standardPath)) {
+    if (!isValidPath(options.path)) {
       console.error(chalk.red('Error: Invalid derivation path format'));
       process.exit(1);
     }
 
-    // Determine network from key prefix
+    // Determine network from key prefix and get network config
     const isTestnet = options.key.startsWith('t');
-    const network = isTestnet ? {
-      wif: 0xef,
-      bip32: {
-        public: 0x043587cf,
-        private: 0x04358394
-      }
-    } : {
-      wif: 0x80,
-      bip32: {
-        public: 0x0488b21e,
-        private: 0x0488ade4
-      }
-    };
+    const network = getNetwork(isTestnet);
 
     // Parse the parent key with appropriate network
     const parentNode = BIP32.fromBase58(options.key, network);
 
     // Convert path to indices and derive
-    const indices = pathToIndicies(standardPath);
+    const indices = pathToIndicies(options.path);
 
     // Debug log for indices
     if (options.verbose) {
       console.log(chalk.blue('\nPath Analysis:'));
       indices.forEach((index, i) => {
-        const segment = standardPath.split('/')[i + 1];
+        const segment = options.path.split('/')[i + 1];
         const isHardened = index >= HARDENED_OFFSET;
         const displayIndex = isHardened ? index - HARDENED_OFFSET : index;
         console.log(chalk.blue(
@@ -97,6 +84,7 @@ function derive(options) {
       });
     }
 
+    // Derive child node
     let node = parentNode;
     for (const index of indices) {
       node = node.derive(index);
@@ -105,8 +93,9 @@ function derive(options) {
     // Prepare result
     const result = {
       network: isTestnet ? 'testnet' : 'mainnet',
-      path: standardPath,
-      fingerprint: `0x${node.fingerprint.toString('hex').padStart(8, '0')}`,
+      path: options.path,
+      parentFingerprint: `${node.parentFingerprint.toString('hex').padStart(8, '0')}`,
+      fingerprint: `${node.fingerprint.toString('hex').padStart(8, '0')}`,
       childPrivateKey: node.isNeutered() ? null : node.toBase58(),
       childPublicKey: node.neutered().toBase58()
     };
@@ -115,7 +104,8 @@ function derive(options) {
       console.log(chalk.green('\nDerived Keys:'));
       console.log(chalk.yellow('Network:          '), result.network);
       console.log(chalk.yellow('Path:             '), result.path);
-      console.log(chalk.yellow('Fingerprint:      '), result.fingerprint);
+      console.log(chalk.yellow('Parent Fingerprint:'), `0x${result.parentFingerprint}`);
+      console.log(chalk.yellow('Child Fingerprint: '), `0x${result.fingerprint}`);
       if (result.childPrivateKey) {
         console.log(formatExtendedKey('Child Private Key', result.childPrivateKey));
       }

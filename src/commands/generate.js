@@ -4,6 +4,7 @@ const { BIP32Factory } = require('bip32');
 const ecc = require('tiny-secp256k1');
 const { isValidHexString } = require('../utils/validation');
 const { formatExtendedKey } = require('../utils/formatting');
+const { getNetwork } = require('../utils/networks');
 
 // Initialize BIP32 factory
 const BIP32 = BIP32Factory(ecc);
@@ -23,20 +24,8 @@ function generate(options) {
       seed = crypto.randomBytes(32);
     }
 
-    // Determine network (default to mainnet)
-    const network = options.testnet ? {
-      wif: 0xef,
-      bip32: {
-        public: 0x043587cf,
-        private: 0x04358394
-      }
-    } : {
-      wif: 0x80,
-      bip32: {
-        public: 0x0488b21e,
-        private: 0x0488ade4
-      }
-    };
+    // Get network configuration
+    const network = getNetwork(options.testnet);
 
     // Generate master node with network parameters
     const node = BIP32.fromSeed(seed, network);
