@@ -22,18 +22,6 @@ function calculateHash160(data) {
 }
 
 /**
- * Calculate fingerprint from public key
- * @param {Buffer} publicKey - Public key buffer
- * @returns {string} Fingerprint as hex string
- */
-function calculateFingerprint(publicKey) {
-  // For BIP32 fingerprint calculation, we need the compressed public key
-  const compressedPubKey = ecc.pointCompress(publicKey, true);
-  const hash160 = calculateHash160(compressedPubKey);
-  return hash160.slice(0, 4).toString('hex');
-}
-
-/**
  * Formats a Buffer or Uint8Array as a continuous hex string
  * @param {Buffer|Uint8Array|number} value - Value to convert
  * @param {number} padLength - Optional padding length
@@ -102,8 +90,8 @@ function decode(options) {
     // For derived keys, use the parent fingerprint from the key itself
     const parentFingerprint = node.depth === 0 ? '00000000' : formatHex(node.parentFingerprint, 8);
 
-    // Calculate current node's fingerprint from its public key
-    const nodeFingerprint = calculateFingerprint(node.publicKey);
+    // Use bip32 library's fingerprint calculation instead of our custom implementation
+    const nodeFingerprint = formatHex(node.fingerprint, 8);
 
     // Add debug info for public key formats
     if (options.verbose) {
