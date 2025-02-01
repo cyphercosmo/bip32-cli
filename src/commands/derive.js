@@ -2,7 +2,7 @@ const chalk = require('chalk');
 const { BIP32Factory } = require('bip32');
 const ecc = require('tiny-secp256k1');
 const { isValidPath, isValidExtendedKey } = require('../utils/validation');
-const { formatExtendedKey } = require('../utils/formatting');
+const { formatExtendedKey, formatHex } = require('../utils/formatting');
 const { getNetwork } = require('../utils/networks');
 
 // Initialize BIP32 factory
@@ -78,8 +78,8 @@ function derive(options) {
         const displayIndex = isHardened ? index - HARDENED_OFFSET : index;
         console.log(chalk.blue(
           `${segment.padEnd(4)}: ` +
-          `index=0x${displayIndex.toString(16).padStart(8, '0')} ` +
-          `(raw=0x${index.toString(16).padStart(8, '0')})`
+          `index=0x${formatHex(displayIndex, 8)} ` +
+          `(raw=0x${formatHex(index, 8)})`
         ));
       });
     }
@@ -94,8 +94,8 @@ function derive(options) {
     const result = {
       network: isTestnet ? 'testnet' : 'mainnet',
       path: options.path,
-      parentFingerprint: `${node.parentFingerprint.toString('hex').padStart(8, '0')}`,
-      fingerprint: `${node.fingerprint.toString('hex').padStart(8, '0')}`,
+      parentFingerprint: formatHex(node.parentFingerprint, 8),
+      fingerprint: formatHex(node.fingerprint, 8),
       childPrivateKey: node.isNeutered() ? null : node.toBase58(),
       childPublicKey: node.neutered().toBase58()
     };
